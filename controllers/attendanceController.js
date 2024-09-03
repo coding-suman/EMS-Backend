@@ -1,5 +1,6 @@
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 
 // Employee Check-In
 const checkIn = async (req, res) => {
@@ -26,7 +27,7 @@ const checkIn = async (req, res) => {
 // Employee Check-Out
 const checkOut = async (req, res) => {
     try {
-        const userId = req.user.id; 
+        const userId = req.user.id;
 
         // Find the active attendance record
         const attendance = await Attendance.findOne({ userId, checkOutTime: null });
@@ -61,7 +62,7 @@ const checkOut = async (req, res) => {
 // Pause Attendance
 const pauseAttendance = async (req, res) => {
     try {
-        const userId = req.user.id; 
+        const userId = req.user.id;
 
         // Find the active attendance record
         const attendance = await Attendance.findOne({ userId, checkOutTime: null, status: 'Checked In' });
@@ -84,7 +85,7 @@ const pauseAttendance = async (req, res) => {
 // Resume Attendance
 const resumeAttendance = async (req, res) => {
     try {
-        const userId = req.user.id; 
+        const userId = req.user.id;
 
         // Find the active attendance record
         const attendance = await Attendance.findOne({ userId, checkOutTime: null, status: 'Paused' });
@@ -118,6 +119,160 @@ const getAttendanceRecords = async (req, res) => {
     }
 };
 
+const getMonthlyAttendanceRecords = async (req, res) => {
+    const { month } = req.query; // 'current' or 'YYYY-MM' format
+
+    let startDate, endDate;
+
+    if (month === 'current') {
+        const now = new Date();
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1); // Correctly sets to the current year and month
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999); // Sets to the end of the current month
+    } else if (month && /^\d{4}-\d{2}$/.test(month)) {
+        const [year, monthIndex] = month.split('-');
+        console.log(year, monthIndex);
+
+        startDate = new Date(parseInt(year), parseInt(monthIndex) - 1, 1); // Sets to the first day of the specified month and year
+        endDate = new Date(parseInt(year), parseInt(monthIndex), 0, 23, 59, 59, 999); // Sets to the last day of the specified month and year
+    } else {
+        return res.status(400).json({ message: 'Invalid or missing month parameter' });
+    }
+
+    console.log('================ Filter ====================');
+    console.log({
+        '$match': {
+            'userId': req.user.id,
+            'createdAt': {
+                '$gte': startDate,
+                '$lte': endDate
+            }
+        }
+    });
+    console.log('=================totalPauseTime===================');
+
+    try {
+        const attendanceRecords = await Attendance.aggregate([
+            {
+                '$match': {
+                    'userId': new mongoose.Types.ObjectId(req.user.id),
+                    'createdAt': {
+                        '$gte': startDate,
+                        '$lte': endDate
+                    }
+                }
+            },
+            {
+                '$addFields': {
+                    'totalPauseTime': {
+                        '$sum': {
+                            '$map': {
+                                'input': '$pauseTimes',
+                                'as': 'pause',
+                                'in': {
+                                    '$divide': [
+                                        {
+                                            '$subtract': ['$$pause.end', '$$pause.start']
+                                        },
+                                        1000 * 60 * 60 // Convert milliseconds to hours
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ]);
+
+        res.json(attendanceRecords);
+    } catch (error) {
+        console.error('Error fetching attendance data:', error);
+        res.status(500).json({ message: 'Error fetching attendance data' });
+    }
+};
+
+const getAdminMonthlyAttendanceRecords = async (req, res) => {
+    const { userId, month } = req.query; // userId and month ('YYYY-MM' format)
+
+    if (!userId || !month) {
+        return res.status(400).json({ message: 'User ID and month are required' });
+    }
+
+    let startDate, endDate;
+
+    if (month === 'current') {
+        const now = new Date();
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else if (/^\d{4}-\d{2}$/.test(month)) {
+        const [year, monthIndex] = month.split('-');
+        startDate = new Date(parseInt(year), parseInt(monthIndex) - 1, 1);
+        endDate = new Date(parseInt(year), parseInt(monthIndex), 0, 23, 59, 59, 999);
+    } else {
+        return res.status(400).json({ message: 'Invalid month format' });
+    }
+
+    try {
+        const attendanceRecords = await Attendance.aggregate([
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(userId), // Convert userId to ObjectId
+                    createdAt: {  // Filter by createdAt field to match month
+                        $gte: startDate,
+                        $lte: endDate
+                    }
+                }
+            },
+            {
+                '$addFields': {
+                    'totalPauseTime': {
+                        '$sum': {
+                            '$map': {
+                                'input': '$pauseTimes',
+                                'as': 'pause',
+                                'in': {
+                                    '$divide': [
+                                        {
+                                            '$subtract': ['$$pause.end', '$$pause.start']
+                                        },
+                                        1000 * 60 * 60 // Convert milliseconds to hours
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "userData"
+                }
+            },
+            {
+                "$project": {
+                    "userId": 1,
+                    "createdAt": 1,
+                    "checkInTime": 1,
+                    "checkOutTime": 1,
+                    "status": 1,
+                    "totalWorkHours": 1,
+                    "totalPauseTime": 1,
+                    "firstName": "$userData.firstName",
+                    "lastName": "$userData.lastName",
+                    "email": "$userData.email"
+                }
+            },
+        ]);
+
+        res.json(attendanceRecords);
+    } catch (error) {
+        console.error('Error fetching attendance data:', error);
+        res.status(500).json({ message: 'Error fetching attendance data' });
+    }
+};
+
 // Update an attendance record (Admin only)
 const updateAttendanceRecord = async (req, res) => {
     try {
@@ -148,5 +303,7 @@ module.exports = {
     pauseAttendance,
     resumeAttendance,
     getAttendanceRecords,
-    updateAttendanceRecord
+    updateAttendanceRecord,
+    getMonthlyAttendanceRecords,
+    getAdminMonthlyAttendanceRecords
 };

@@ -1,8 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors');
 
 const app = express();
+
+app.use(cors());
 
 // Middleware to parse JSON requests
 app.use(express.json());
@@ -32,6 +35,7 @@ const attendanceRoutes = require('./routes/attendance');
 // Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api', require('./routes/employees'));
 
 // Placeholder route
 app.get('/', (req, res) => {

@@ -1,6 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs');  // Ensure bcryptjs is imported correctly
 const User = require('./models/User'); // Adjust the path if necessary
 
 // Connect to MongoDB
@@ -24,13 +24,13 @@ const createAdminUser = async () => {
         const adminUser = new User({
             username: 'admin',
             email: 'admin@example.com',
-            password: 'password123', // Make sure to replace this with a strong password
+            password: 'password123', // Replace this with a strong password
             role: 'Admin'
         });
 
         // Hash the password before saving
-        const salt = await bcrypt.genSalt(10);
-        adminUser.password = await bcrypt.hash(adminUser.password, salt);
+        // const salt = await bcrypt.genSalt(10);  // Ensure salt is generated correctly
+        // adminUser.password = await bcrypt.hash(adminUser.password, salt);  // Ensure password is hashed correctly
 
         // Save the admin user to the database
         await adminUser.save();

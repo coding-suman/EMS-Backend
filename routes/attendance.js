@@ -5,9 +5,11 @@ const {
     pauseAttendance,
     resumeAttendance,
     getAttendanceRecords,
-    updateAttendanceRecord
+    updateAttendanceRecord,
+    getMonthlyAttendanceRecords,
+    getAdminMonthlyAttendanceRecords
 } = require('../controllers/attendanceController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -28,5 +30,9 @@ router.get('/', protect, getAttendanceRecords);
 
 // Route to update an attendance record (Admin only)
 router.put('/:id', protect, updateAttendanceRecord);
+
+router.get('/attendance', protect, getMonthlyAttendanceRecords);
+
+router.get('/admin', protect, adminOnly, getAdminMonthlyAttendanceRecords);
 
 module.exports = router;

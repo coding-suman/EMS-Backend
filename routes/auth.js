@@ -1,5 +1,5 @@
 const express = require('express');
-const { registerUser, loginUser, createAdminUser } = require('../controllers/authController');
+const { registerUser, loginUser, createAdminUser, updateUserProfile } = require('../controllers/authController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -14,6 +14,8 @@ router.post('/login', loginUser);
 router.get('/profile', protect, (req, res) => {
     res.json({ message: 'This is a protected route', user: req.user });
 });
+
+router.put('/profile', protect, updateUserProfile);
 
 // Admin creation route (protected)
 router.post('/admin/create', protect, adminOnly, createAdminUser);
