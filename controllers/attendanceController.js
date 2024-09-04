@@ -138,18 +138,6 @@ const getMonthlyAttendanceRecords = async (req, res) => {
         return res.status(400).json({ message: 'Invalid or missing month parameter' });
     }
 
-    console.log('================ Filter ====================');
-    console.log({
-        '$match': {
-            'userId': req.user.id,
-            'createdAt': {
-                '$gte': startDate,
-                '$lte': endDate
-            }
-        }
-    });
-    console.log('=================totalPauseTime===================');
-
     try {
         const attendanceRecords = await Attendance.aggregate([
             {

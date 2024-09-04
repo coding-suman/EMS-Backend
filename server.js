@@ -1,4 +1,6 @@
 require('dotenv').config();
+require('./cronJobs/attendanceReminder');
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -31,10 +33,12 @@ connectDB();
 // Import routes
 const authRoutes = require('./routes/auth');
 const attendanceRoutes = require('./routes/attendance');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api', require('./routes/employees'));
 
 // Placeholder route

@@ -21,4 +21,14 @@ const registerValidationSchema = Joi.object({
   }),
 });
 
-module.exports = { registerValidationSchema };
+const convertUTCToIST = (date) => {
+  if (!date) return null; // Handle cases where the date is not defined
+
+  const utcDate = new Date(date);
+  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC +5:30
+  const istDate = new Date(utcDate.getTime() + istOffset);
+  return istDate;
+};
+
+
+module.exports = { registerValidationSchema, convertUTCToIST };
